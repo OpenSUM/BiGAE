@@ -53,10 +53,27 @@ All the example scripts can be found in `./script`
 ## Citation
 
 ```
-@article{jiang2023disco,
-  title={DisCo: Distilled Student Models Co-training for Semi-supervised Text Mining},
-  author={Jiang, Weifeng and Mao, Qianren and Li, Jianxin and Lin, Chenghua and Yang, Weiyi and Deng, Ting and Wang, Zheng},
-  journal={arXiv preprint arXiv:2305.12074},
-  year={2023}
+@inproceedings{DBLP:conf/emnlp/MaoZLGHLL23,
+  author       = {Qianren Mao and
+                  Shaobo Zhao and
+                  Jiarui Li and
+                  Xiaolei Gu and
+                  Shizhu He and
+                  Bo Li and
+                  Jianxin Li},
+  editor       = {Houda Bouamor and
+                  Juan Pino and
+                  Kalika Bali},
+  title        = {Bipartite Graph Pre-training for Unsupervised Extractive Summarization
+                  with Graph Convolutional Auto-Encoders},
+  booktitle    = {Findings of the Association for Computational Linguistics: {EMNLP}
+                  2023, Singapore, December 6-10, 2023},
+  pages        = {4929--4941},
+  publisher    = {Association for Computational Linguistics},
+  year         = {2023},
+  url          = {https://aclanthology.org/2023.findings-emnlp.328},
+  timestamp    = {Wed, 13 Dec 2023 17:20:20 +0100},
+  biburl       = {https://dblp.org/rec/conf/emnlp/MaoZLGHLL23.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
 }
 ```
