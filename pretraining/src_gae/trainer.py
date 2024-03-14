@@ -12,6 +12,7 @@ import collections
 
 
 def build_optimizer(args, model):
+    """构造Optimizer， 可以在args中定义优化算法"""
     params = model.parameters()
     if args.optim_method == 'sgd':
         optimizer = optim.SGD(params, lr=args.learning_rate)
@@ -32,6 +33,7 @@ def build_optimizer(args, model):
     return optimizer
 
 def build_arga_optimizer(args, model, discriminator):
+    """用于ARGA的Optimizer"""
     params_gen = model.parameters()
     optim_gen = optim.Adam(params_gen, lr=args.learning_rate,
                                     betas=(args.beta1, args.beta2), eps=1e-9)

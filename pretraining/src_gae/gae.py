@@ -16,6 +16,7 @@ MAX_LOGSTD = 10
 
 
 def reset(nn):
+    """更新参数"""
     def _reset(item):
         if hasattr(item, 'reset_parameters'):
             item.reset_parameters()
@@ -29,6 +30,7 @@ def reset(nn):
 
 
 class InnerProductDecoder(torch.nn.Module):
+    """向量内积，作为GAE的Decoder"""
     def forward(self, z, edge_index, sigmoid=True):
         value = (z[edge_index[0]] * z[edge_index[1]]).sum(dim=1)
         return torch.sigmoid(value) if sigmoid else value
@@ -39,6 +41,7 @@ class InnerProductDecoder(torch.nn.Module):
 
 
 class GAE(torch.nn.Module):
+    """图自编码器"""
     def __init__(self, args, encoder, device, decoder=None):
         super().__init__()
         self.encoder = encoder
@@ -97,6 +100,17 @@ class GAE(torch.nn.Module):
         return self.recon_loss(z, pos_edge_index, neg_edge_index)
     
     def mse_loss(self, z, pos_edge_index, pos_edge_attr, neg_edge_index=None):
+        """MSE Loss作为目标函数
+
+        Args:
+            z : 节点embedding
+            pos_edge_index : 摘要节点index
+            pos_edge_attr : 预测值
+            neg_edge_index : 非摘要节点index
+
+        Returns:
+            Loss函数
+        """
         p_edge = self.decoder(z, pos_edge_index, sigmoid=True)
         pos_loss = self.mse(p_edge.float(), pos_edge_attr.float())  
 
@@ -137,6 +151,7 @@ class GAE(torch.nn.Module):
 
 
 class VGAE(GAE):
+    "Variational Graph Auto Encoder"
     def __init__(self, args, encoder, device, decoder=None):
         super().__init__(args, encoder, device, decoder)
 
@@ -172,6 +187,7 @@ class VGAE(GAE):
 
 
 class AutoEncoder(torch.nn.Module):
+    """集成了GAE,VGAE以及不同loss函数的AutoEncoder"""
     def __init__(self, args, encoder, device):
         super().__init__()
         self.ret_type = args.auto_encoder
@@ -184,6 +200,17 @@ class AutoEncoder(torch.nn.Module):
             self.auto_encoder = GAE(args, encoder, device)
         
     def forward(self, src, graph_data, src_for_sent, embed=None, *args, **kwargs):
+        """模型前馈
+
+        Args:
+            src : 原文
+            graph_data : 构造的图数据
+            src_for_sent : 用于LSTM的句子张量
+            embed : 只有词节点的embedding
+
+        Returns:
+           loss 或者 包含loss 句子分数 embedding的dict
+        """
         y, embed = self.auto_encoder.encode(src, src_for_sent, graph_data.edge_index, embed=embed) #获取词和句子的向量
 
         # 预测任务，mse:预测tf-idf值
@@ -206,6 +233,7 @@ class AutoEncoder(torch.nn.Module):
         return {"loss": loss, "sent_scores":y, "embed": embed} 
 
     def forward_test(self, src, graph_data, src_for_sent, embed=None, *args, **kwargs):
+        """测试时的前馈，返回正例负例的分类准确率"""
         z, embed = self.auto_encoder.encode(src, src_for_sent, graph_data.edge_index, embed)
         
         pos_edge_index = graph_data.edge_index
@@ -228,12 +256,15 @@ class AutoEncoder(torch.nn.Module):
         
 
 class Summarizer(torch.nn.Module):
+    """摘要生成的图神经网络模型"""
     def __init__(self, args, encoder, device, checkpoint=None):
         super().__init__()
         self.hidden_size = args.hidden_size*2 if args.conv == 'both' else args.hidden_size
         self.encoder = encoder
         self.encoder_freeze = args.encoder_freeze
         self.device = device
+
+        # 选择层数不同的MLP
         if args.nlayer_cls == 1:
             self.cls = torch.nn.Linear(self.hidden_size, 1)
         elif args.nlayer_cls == 2:
@@ -255,15 +286,28 @@ class Summarizer(torch.nn.Module):
         self.ret_type = args.auto_encoder
         
     def forward(self, src, graph_data, mask_cls, src_for_sent, embed=None, labels=None, **kwargs):
+        """抽取摘要
+
+        Args:
+            src : 原文
+            graph_data : 图数据
+            mask_cls : 分类概率的mask
+            src_for_sent : 句子id张量
+            embed : 图节点embedding
+            labels : 分类标签
+
+        Returns:
+            loss或包含loss、句子概率、节点embedding、句子embedding的dict
+        """
         batch_size = src.size(0)
         sequence_length = src.size(1)
-        if self.encoder_freeze:
+        if self.encoder_freeze: # 不更新encoder的参数
             with torch.no_grad():
                 if self.ret_type == 'vgae':
                     y, _, embed = self.encoder(src, src_for_sent, graph_data.edge_index, embed=embed)
                 else:
                     y, embed = self.encoder(src, src_for_sent, graph_data.edge_index, embed=embed)
-        elif self.ret_type == 'vgae':
+        elif self.ret_type == 'vgae': # 更新encoder的参数
             mu, logstd, embed = self.encoder(src, src_for_sent, graph_data.edge_index, embed=embed)
             logstd = logstd.clamp(max=MAX_LOGSTD)
             if self.training:
@@ -282,12 +326,13 @@ class Summarizer(torch.nn.Module):
         #logits = logits[torch.arange(batch_size).unsqueeze(1), clss]
         sent_scores = self.sigmoid(logits) * mask_cls.float()
 
-        if labels is not None:
+        if labels is not None: # 若正在训练，返回Loss
             loss = self.loss(sent_scores, labels.float())
         return {"loss": loss if labels is not None else None, "sent_scores":sent_scores, "embed": embed, "sent_vec":sent_vec}
 
 
 class MultiTaskSummarizer(torch.nn.Module):
+    """自编码和摘要任务同时训练的模型"""
     def __init__(self, args, auto_encoder, device, checkpoint=None):
         super().__init__()
         self.hidden_size = args.hidden_size*2 if args.conv == 'both' else args.hidden_size

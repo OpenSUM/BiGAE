@@ -135,6 +135,7 @@ class GCN(nn.Module):
 
 
 class GCNII(GCN):
+    """GCN2, 加入残差机制"""
     def __init__(self, args, device, nlayers, dropout, theta, alpha, embed=None, load_embedding=True, variant=False,
                 conv_class=pyg.nn.conv.gcn2_conv.GCN2Conv):
         super(GCNII, self).__init__(args, device, embed, load_embedding, conv_class)
@@ -177,6 +178,7 @@ class GCNII(GCN):
 
 
 class JKNet(nn.Module):
+    """JKNet, 加入残差机制"，所有层和最终建立连接"""
     def __init__(self, nfeat, nlayers, nhidden, dropout, mode):
         super(JKNet, self).__init__()
 
@@ -211,6 +213,7 @@ class JKNet(nn.Module):
 
 
 class BiEncoder(nn.Module):
+    """引入两种传播机制的Encoder"""
     def __init__(self, args, encoder1, encoder2):
         super(BiEncoder, self).__init__()
         self.encoder1 = encoder1
@@ -233,6 +236,7 @@ class BiEncoder(nn.Module):
 
 
 class GraphAttention(nn.Module):
+    """计算注意力权重，用于合并不同部分的embeding"""
     def __init__(self, hidden_size):
         super(GraphAttention, self).__init__()
         in_size = hidden_size
@@ -262,6 +266,7 @@ WORD_PAD = "[PAD]"
 
 
 class SentEncoder(nn.Module):
+    """LSTM+CNN生成句子embedding"""
     def __init__(self, hps, embed, device):
         """
         :param hps: 

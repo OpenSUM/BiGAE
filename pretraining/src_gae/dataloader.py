@@ -18,6 +18,7 @@ def map_imp(imp):
     return imp #imp/2 + 0.5
 
 def get_graph_data(src, clss, pre_src, pre_graphs, pre_clss, pre_between_edge_attr, batch_size, device):
+    # 处理图数据，包括边集，中心度的张量的构造
     #sent_importance = pad(pre_sent_importance, 0)
     graphs = []
     graphs_centrality = []
@@ -32,13 +33,15 @@ def get_graph_data(src, clss, pre_src, pre_graphs, pre_clss, pre_between_edge_at
         graph_centrality = []
         for i, e in enumerate(pre_graphs[bi]):
             if e[0] < n_node and e[1] < n_node:
+                # e[0]和e[1]分别属于句子节点和词节点两个集合，所以节点编号不同
                 graph.append([e[0]+sent_len, e[1]])
                 graph.append([e[1], e[0]+sent_len])
+                # 边对应的中心度
                 graph_centrality.append(map_imp(pre_between_edge_attr[bi][i]))
                 graph_centrality.append(map_imp(pre_between_edge_attr[bi][i]))
         graphs.append(graph)
-        graphs_centrality.append(graph_centrality)
-
+        graphs_centrality.append(graph_centrality) # 节点中心度
+        
         summ_graph = [e for e in graph if e[0]-sent_len in pre_clss[bi] or e[1]-sent_len in pre_clss[bi] ]
         summ_graphs.append(summ_graph)
 
@@ -46,7 +49,7 @@ def get_graph_data(src, clss, pre_src, pre_graphs, pre_clss, pre_between_edge_at
             centrality=torch.tensor(graphs_centrality[i]), \
             summ_edge_index=torch.tensor(summ_graphs[i]).t().contiguous(), \
             edge_index=torch.tensor(graphs[i]).t().contiguous() ) \
-            for i in range(len(graphs))]
+            for i in range(len(graphs))] # pyg的图数据
             
     return pyg.data.Batch.from_data_list(data_list).to(device)
 
@@ -82,9 +85,9 @@ def gae_collate_fn(data):
         src_sent_labels = torch.tensor(pad(pre_src_sent_labels, 0))
         mask_cls = 1 - (clss == -1).int()
         clss[clss == -1] = 0
-        ret['clss'] = clss.long().to(device)
+        ret['clss'] = clss.long().to(device) # 句子的范围
         ret['mask_cls'] = mask_cls.to(device)
-        ret['labels'] = src_sent_labels.to(device)
+        ret['labels'] = src_sent_labels.to(device) # 句子分类的标签
 
         ret['src'] = src.to(device)
         ret['tgt'] = tgt.to(device)
@@ -93,7 +96,7 @@ def gae_collate_fn(data):
 
         ret['graph_data'] = get_graph_data(src, clss, pre_src, pre_graphs, pre_clss, pre_between_edge_attr, batch_size, device)
 
-        if (is_test):
+        if (is_test): # 标准摘要字符串
             src_str = [x[-4] for x in data]
             ret['src_str'] = src_str
             tgt_str = [x[-3] for x in data]
@@ -113,6 +116,11 @@ class GAEDataset(Dataset):
         self.preprocessed = []
     
     def load_dataset(self, corpus_type):
+        """加载数据
+
+        Args:
+            corpus_type: 数据类型，训练集或测试集或自编码测试集
+        """
         assert corpus_type in ["train", "valid", "test", "test_ae"]
         if corpus_type == "test_ae": corpus_type = "test"
     
@@ -159,6 +167,15 @@ class GAEDataset(Dataset):
             return [src, tgt, clss, src_sent_labels, graph, centrality, src_for_sent]
     
     def get_src_for_sentence(self, src, clss):
+        """为LSTM将原文切分为句子数据
+
+        Args:
+            src: 原文本（id)
+            clss : 句子范围
+
+        Returns:
+            句子数据
+        """
         tmp_clss = clss.copy()
         tmp_clss.append(len(src))
         src_for_sent = [(src[tmp_clss[j]:tmp_clss[j+1]])[:self.args.max_sent_len] \
@@ -166,6 +183,7 @@ class GAEDataset(Dataset):
         return src_for_sent
 
     def __getitem__(self, index):
+        """用于Dataloader获取数据"""
         ret = []
         if index in self.preprocessed:
             ret = self.dataset[index]

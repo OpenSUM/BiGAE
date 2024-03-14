@@ -32,6 +32,7 @@ def gcn_norm_keynode(edge_index, edge_weight=None, num_nodes=None, improved=Fals
 
 def gcn_norm_keynode(edge_index, edge_weight=None, num_nodes=None, improved=False,
              add_self_loops=True, dtype=None):
+    """定义和标准GCN不同的message passing机制"""
 
     fill_value = 2. if improved else 1.
 
